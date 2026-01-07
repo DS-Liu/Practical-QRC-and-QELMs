@@ -97,7 +97,7 @@ def collapse_ops(n_qubits: int, decay: float = 1.) -> list[Qobj]:
     def jump_op(n_qubits: int, i: int, decay: float = 1.) -> Qobj:
         '''Jump operator of the ith qubit.'''
         gamma = decay # in unit of global detuning Omega
-        alpha, beta = .05/2, .16/2
+        alpha, beta = .025, .08
         op = np.sqrt(gamma)*basis(2, 1) * (alpha*basis(2, 0) + beta*basis(2, 1)).dag()
         return expand_operator(op, dims=[2]*n_qubits, targets=i)
     
