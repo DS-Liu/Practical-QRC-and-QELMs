@@ -13,6 +13,7 @@ import numpy.typing as npt
 from qutip import Qobj, basis, sigmax, sigmaz, fock_dm, tensor # type: ignore
 from qutip_qip.operations import expand_operator
 
+# Throughout the project, we define the Rydberg state as |r> = basis(2, 0), ground state as |g> = basis(2, 1).
 Reservoir_cf = namedtuple('reservoir_cf', ['warmup_size', 'train_size', 'validate_size', 'test_size', 'tau', 'Delta0', 'a', 'lattice', 'sigma', 'decay'])
 reservoir_cf = Reservoir_cf(warmup_size=200, train_size=400, validate_size=200, test_size=200, tau=10, Delta0=-.5, a=1., lattice='triangle', sigma=.04, decay=.95238)
 
@@ -57,9 +58,11 @@ def position(n_qubits: int, a: float, type: str, sigma: float, seed: int) -> npt
 
 def hamiltonian(Delta: Union[float, np.ndarray], pos: np.ndarray, tlist: np.ndarray = None) -> Union[Qobj, list]:
     '''
+    Hamiltonian of the atom array.
     Args:
+        Delta: float or 1darray, detuning of the atom array.
         pos: 2darray of shape (n_qubits, 2), each row corresponds to the position of an atom in the x-y plane.
-        C6: float, coupling strength of two atoms at a distance of unit length.
+        tlist: 1darray, for MS-QRC.
     '''
     Omega = 1
     n_qubits = len(pos)
@@ -67,16 +70,16 @@ def hamiltonian(Delta: Union[float, np.ndarray], pos: np.ndarray, tlist: np.ndar
     for i in range(n_qubits):
         for j in range(i+1, n_qubits):
             R = np.linalg.norm(pos[i] - pos[j])
-            J[i, j] = Omega / R**6
+            J[i, j] = 1 / R**6
 
-    if isinstance(Delta, float): # time-independent Hamiltonian encoded with 1d input time series.
+    if isinstance(Delta, float): # Time-independent Hamiltonian encoded with 1d input time series.
         H = 0
         for i in range(n_qubits):
             H += Delta*expand_operator(fock_dm(2, 0), dims=[2]*n_qubits, targets=i) + Omega/2*expand_operator(sigmax(), dims=[2]*n_qubits, targets=i)
             for j in range(i+1, n_qubits):
                 H += J[i, j] * expand_operator(tensor([fock_dm(2, 0)]*2), dims=[2]*n_qubits, targets=[i, j])
     
-    elif isinstance(Delta, (np.ndarray, list)) and tlist is None: # time-independent Hamiltonian encoded with historical input time series.
+    elif isinstance(Delta, (np.ndarray, list)) and tlist is None: # Time-independent Hamiltonian encoded with historical input time series. For single-step quantum reservoir computing (SS-QRC).
         assert len(Delta) == n_qubits
         H = 0
         for i in range(n_qubits):
@@ -84,7 +87,7 @@ def hamiltonian(Delta: Union[float, np.ndarray], pos: np.ndarray, tlist: np.ndar
             for j in range(i+1, n_qubits):
                 H += J[i, j] * expand_operator(tensor([fock_dm(2, 0)]*2), dims=[2]*n_qubits, targets=[i, j])
 
-    elif isinstance(Delta, (np.ndarray, list)) and tlist is not None: # time-dependent Hamiltonian encoded with 1d input time series.
+    elif isinstance(Delta, (np.ndarray, list)) and tlist is not None: # Time-dependent Hamiltonian encoded with 1d input time series. For multi-step quantum reservoir computing (MS-QRC).
         assert len(Delta) == len(tlist)
         Delta = Delta.reshape(-1)
 
